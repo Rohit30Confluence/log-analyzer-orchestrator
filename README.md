@@ -19,6 +19,117 @@ This system ensures:
 - **Automated health monitoring** integrated with status API
 
 ## 🚀 Usage
-```bash
 pip install -r requirements.txt
 python orchestrator/main.py
+log-analyzer-orchestrator/
+│
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── .github/
+│   ├── workflows/
+│   │   ├── deploy.yml
+│   │   ├── ci.yml
+│   │   └── issue-auto-label.yml
+│   └── ISSUE_TEMPLATE/
+│       ├── deployment_issue.md
+│       ├── dns_issue.md
+│       └── general_issue.md
+│
+├── orchestrator/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── dns_manager.py
+│   ├── deploy_manager.py
+│   ├── health_checker.py
+│   ├── config.py
+│   └── utils/
+│       ├── logger.py
+│       ├── env_loader.py
+│       └── validator.py
+│
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── DEPLOYMENT_GUIDE.md
+│   ├── TROUBLESHOOTING.md
+│   └── ROADMAP.md
+│
+└── tests/
+    ├── test_dns_manager.py
+    ├── test_deploy_manager.py
+    └── test_health_checker.py
+
+## 🧩 CI/CD Pipeline
+
+.github/workflows/ci.yml → runs linting, tests, and validation
+
+.github/workflows/deploy.yml → deploys to Render / Railway
+
+.github/workflows/issue-auto-label.yml → auto-tags deployment or DNS issues
+
+## 🛠️ Troubleshooting
+
+If deployment fails or DNS resolves incorrectly, open an issue using the provided templates under:
+
+.github/ISSUE_TEMPLATE/
+
+## 🤝 Contributions
+
+This repository acts as a pillar to the main Log Analyzer project.
+Contributions to improve orchestration, fault tolerance, or deployment automation are welcome.
+
+## ⚙️ Roadmap
+
+ Setup orchestration repo
+
+ Automate Render + DNS sync
+
+ Integrate Redis for state caching
+
+ Build API dashboard for runtime status
+
+ Implement predictive deployment analysis
+
+Maintainer: @Rohit30Confluence
+
+Project Type: DevOps Automation
+License: MIT
+
+
+---
+
+### ⚡ `.github/workflows/deploy.yml`
+
+name: Deploy Orchestrator Service
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Tests
+        run: pytest tests/
+
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          echo "Triggering deployment webhook..."
+          curl -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+          -d '{"service":"log-analyzer-orchestrator"}' \
+          https://api.render.com/v1/deploys
