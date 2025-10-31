@@ -21,43 +21,6 @@ This system ensures:
 ## 🚀 Usage
 pip install -r requirements.txt
 python orchestrator/main.py
-log-analyzer-orchestrator/
-│
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── .github/
-│   ├── workflows/
-│   │   ├── deploy.yml
-│   │   ├── ci.yml
-│   │   └── issue-auto-label.yml
-│   └── ISSUE_TEMPLATE/
-│       ├── deployment_issue.md
-│       ├── dns_issue.md
-│       └── general_issue.md
-│
-├── orchestrator/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── dns_manager.py
-│   ├── deploy_manager.py
-│   ├── health_checker.py
-│   ├── config.py
-│   └── utils/
-│       ├── logger.py
-│       ├── env_loader.py
-│       └── validator.py
-│
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── DEPLOYMENT_GUIDE.md
-│   ├── TROUBLESHOOTING.md
-│   └── ROADMAP.md
-│
-└── tests/
-    ├── test_dns_manager.py
-    ├── test_deploy_manager.py
-    └── test_health_checker.py
 
 ## 🧩 CI/CD Pipeline
 
