@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LogSentinel — Approval Queue</title>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #121821; --border: #232c38;
+    --text: #e6edf3; --muted: #8b98a5;
+    --pending: #d29922; --approved: #2ea043; --denied: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text); padding: 32px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px;
+  }
+  .tab.active { color: var(--text); border-color: #3b4757; background: #1a222d; }
+  .card {
+    border: 1px solid var(--border); background: var(--panel);
+    border-radius: 8px; padding: 16px; margin-bottom: 12px;
+  }
+  .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .action { font-weight: 600; font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .status {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .status.pending { background: rgba(210,153,34,0.15); color: var(--pending); }
+  .status.approved { background: rgba(46,160,67,0.15); color: var(--approved); }
+  .status.denied { background: rgba(248,81,73,0.15); color: var(--denied); }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.6; }
+  .meta b { color: var(--text); font-weight: 500; }
+  .reason { margin-top: 8px; font-size: 13px; color: var(--text); background: #0d1319; padding: 8px 10px; border-radius: 6px; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; }
+  button {
+    border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; cursor: pointer; font-weight: 500;
+  }
+  .approve { background: var(--approved); color: white; }
+  .deny { background: var(--denied); color: white; }
+  .empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+  dialog {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; width: 360px;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.6); }
+  dialog input, dialog textarea {
+    width: 100%; background: #0d1319; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 8px; font-size: 13px; margin-top: 4px; margin-bottom: 12px; font-family: inherit;
+  }
+  dialog label { font-size: 12px; color: var(--muted); }
+  dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>LogSentinel — Approval Queue</h1>
+  <div class="sub">Response actions awaiting human sign-off, and the audit history of past decisions.</div>
+
+  <div class="tabs">
+    <div class="tab active" data-status="pending">Pending</div>
+    <div class="tab" data-status="approved">Approved</div>
+    <div class="tab" data-status="denied">Denied</div>
+    <div class="tab" data-status="">All</div>
+  </div>
+
+  <div id="list"></div>
+
+  <dialog id="decide-dialog">
+    <form id="decide-form">
+      <div style="margin-bottom:12px; font-size:14px;" id="dialog-title"></div>
+      <label>Your name</label>
+      <input type="text" id="actor" required placeholder="e.g. rohit">
+      <label>Reason</label>
+      <textarea id="reason" rows="3" required placeholder="Why?"></textarea>
+      <div class="dialog-actions">
+        <button type="button" class="cancel" id="cancel-btn">Cancel</button>
+        <button type="submit" id="confirm-btn"></button>
+      </div>
+    </form>
+  </dialog>
+
+<script>
+const API_BASE = window.location.origin;
+let currentStatus = "pending";
+let pendingDecision = null; // { approvalId, decision }
+
+const list = document.getElementById("list");
+const dialog = document.getElementById("decide-dialog");
+const dialogTitle = document.getElementById("dialog-title");
+const confirmBtn = document.getElementById("confirm-btn");
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    currentStatus = tab.dataset.status;
+    load();
+  });
+});
+
+async function load() {
+  const url = currentStatus ? `${API_BASE}/approvals?status=${currentStatus}` : `${API_BASE}/approvals`;
+  let items = [];
+  try {
+    const res = await fetch(url);
+    items = await res.json();
+  } catch (e) {
+    list.innerHTML = `<div class="empty">Could not reach the approval service.</div>`;
+    return;
+  }
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty">No ${currentStatus || ""} approvals.</div>`;
+    return;
+  }
+  list.innerHTML = items.map(renderCard).join("");
+}
+
+function renderCard(a) {
+  const showButtons = a.status === "pending";
+  return `
+    <div class="card">
+      <div class="row">
+        <div>
+          <span class="action">${a.action}</span>
+          <span class="status ${a.status}">${a.status}</span>
+        </div>
+      </div>
+      <div class="meta">
+        <b>Event</b> ${a.event_id} &nbsp;·&nbsp;
+        <b>Detector</b> ${a.detector} (${a.rule_id}) &nbsp;·&nbsp;
+        <b>Severity</b> ${a.severity} &nbsp;·&nbsp;
+        <b>Confidence</b> ${a.confidence}<br>
+        <b>Source IP</b> ${a.source_ip || "—"} &nbsp;·&nbsp;
+        <b>Target</b> ${a.target || "—"} &nbsp;·&nbsp;
+        <b>Occurrences</b> ${a.occurrence_count}
+      </div>
+      <div class="reason"><b>Policy:</b> ${a.policy_reason}</div>
+      ${a.status !== "pending" ? `<div class="reason"><b>${a.status} by ${a.actor}:</b> ${a.decision_reason}</div>` : ""}
+      ${showButtons ? `
+        <div class="actions">
+          <button class="approve" onclick="openDialog('${a.approval_id}', 'approve')">Approve</button>
+          <button class="deny" onclick="openDialog('${a.approval_id}', 'deny')">Deny</button>
+        </div>` : ""}
+    </div>
+  `;
+}
+
+window.openDialog = function(approvalId, decision) {
+  pendingDecision = { approvalId, decision };
+  dialogTitle.textContent = decision === "approve" ? "Approve this action" : "Deny this action";
+  confirmBtn.textContent = decision === "approve" ? "Approve" : "Deny";
+  confirmBtn.className = decision === "approve" ? "approve" : "deny";
+  document.getElementById("actor").value = "";
+  document.getElementById("reason").value = "";
+  dialog.showModal();
+};
+
+document.getElementById("cancel-btn").addEventListener("click", () => dialog.close());
+
+document.getElementById("decide-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const actor = document.getElementById("actor").value;
+  const reason = document.getElementById("reason").value;
+  const { approvalId, decision } = pendingDecision;
+  await fetch(`${API_BASE}/approvals/${approvalId}/decide`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor, decision, reason })
+  });
+  dialog.close();
+  load();
+});
+
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>
