@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-requests
-pydantic
-redis
-python-dotenv
-pytest
