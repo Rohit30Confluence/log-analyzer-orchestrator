@@ -1,13 +1,17 @@
 """SQLite-backed persistence for approval requests. Boring on purpose."""
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 from typing import Optional
 
 from orchestrator.models.approval import ApprovalRequest, ApprovalStatus
 
-DEFAULT_DB_PATH = Path("approvals.db")
+# Respects DB_PATH env var so deploy configs can point this at a mounted
+# persistent disk (e.g. Render's /app/data) instead of the container's
+# ephemeral filesystem. Falls back to a local file for dev.
+DEFAULT_DB_PATH = Path(os.environ.get("DB_PATH", "approvals.db"))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS approvals (
@@ -25,6 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_approvals_event_id ON approvals (event_id);
 class Repository:
     def __init__(self, db_path: Path | str = DEFAULT_DB_PATH):
         self.db_path = str(db_path)
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
 
     def _connect(self) -> sqlite3.Connection:
