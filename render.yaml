@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: logsentinel-audit-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: "8001"
+    disk:
+      name: approvals-data
+      mountPath: /app/data
+      sizeGB: 1
+    healthCheckPath: /health
